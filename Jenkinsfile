@@ -29,7 +29,9 @@ pipeline {
         stage('SonarQube Analysis') {
 
             steps {
-
+              script {
+                 scannerHome = tool 'sonar-scanner'
+                      }
                 withSonarQubeEnv('sonar-server') {
 
                     sh '''
