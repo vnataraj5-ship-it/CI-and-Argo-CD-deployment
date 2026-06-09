@@ -4,14 +4,13 @@ pipeline {
 
     environment {
 
-        AWS_REGION = "ap-south-1"
-
-        ECR_REPO = "python-app"
-
-        ACCOUNT_ID = "583067668082"
+        AWS_REGION = 'ap-south-1'
+        ACCOUNT_ID = '583067668082'
+        ECR_REPO = 'python-app'
 
         IMAGE_TAG = "${BUILD_NUMBER}"
 
+        IMAGE_URI = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
     }
 
     stages {
@@ -21,9 +20,9 @@ pipeline {
             steps {
 
                 git branch: 'main',
-                url: 'https://github.com/vnataraj5-ship-it/java-app-cicd.git'
+                url: 'https://github.com/vnataraj5-ship-it/CI-and-Argo-CD-deployment.git'
 
-
+                echo 'Code Checkout Successful'
             }
         }
 
@@ -36,6 +35,7 @@ pipeline {
                     sh '''
                     sonar-scanner \
                     -Dsonar.projectKey=python-app \
+                    -Dsonar.projectName=python-app \
                     -Dsonar.sources=.
                     '''
                 }
@@ -47,8 +47,7 @@ pipeline {
             steps {
 
                 sh '''
-                docker build \
-                -t python-app:${IMAGE_TAG} .
+                docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                 '''
             }
         }
@@ -57,60 +56,73 @@ pipeline {
 
             steps {
 
-                withAWS(credentials: 'aws-ecr',
-                        region: 'ap-south-1') {
+                withAWS(credentials: 'aws-ecr', region: "${AWS_REGION}") {
 
-                    sh '''
-                    aws ecr get-login-password \
-                    --region ap-south-1 | docker login \
-                    --username AWS \
-                    --password-stdin \
-                    ${ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'github-creds',
+                            usernameVariable: 'GITHUB_USER',
+                            passwordVariable: 'GITHUB_TOKEN'
+                        )
+                    ]) {
 
-                    docker tag python-app:${IMAGE_TAG} \
-                    ${ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/python-app:${IMAGE_TAG}
+                        sh '''
 
-                    docker push \
-                    ${ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/python-app:${IMAGE_TAG}
-                    '''
+                        echo "Logging into AWS ECR..."
+
+                        aws ecr get-login-password \
+                        --region ${AWS_REGION} | docker login \
+                        --username AWS \
+                        --password-stdin \
+                        ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+
+                        echo "Tagging Docker Image..."
+
+                        docker tag ${ECR_REPO}:${IMAGE_TAG} ${IMAGE_URI}
+
+
+                        echo "Pushing Docker Image..."
+
+                        docker push ${IMAGE_URI}
+
+
+                        echo "Updating Kubernetes Deployment File..."
+
+                        sed -i "s|image:.*|image: ${IMAGE_URI}|g" k8s/deployment.yaml
+
+
+                        echo "Committing Updated Manifest..."
+
+                        git config user.email "jenkins@local"
+                        git config user.name "Jenkins"
+
+                        git add k8s/deployment.yaml
+
+                        git commit -m "Updated image tag to ${IMAGE_TAG}" || true
+
+
+                        echo "Pushing Updated Manifest To GitHub..."
+
+                        git push https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/vnataraj5-ship-it/CI-and-Argo-CD-deployment.git HEAD:main
+
+                        '''
+                    }
                 }
             }
         }
+    }
 
-        stage('Update Deployment YAML') {
+    post {
 
-            steps {
+        success {
 
-                sh """
-                sed -i 's|image:.*|image: ${ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/python-app:${IMAGE_TAG}|g' k8s/deployment.yaml
-                """
-            }
+            echo 'Pipeline Completed Successfully'
         }
 
-        stage('Push Manifest To GitHub') {
+        failure {
 
-            steps {
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-creds',
-                        usernameVariable: 'USER',
-                        passwordVariable: 'TOKEN'
-                    )
-                ]) {
-
-                    sh '''
-                    git config user.email "jenkins@gmail.com"
-                    git config user.name "jenkins"
-
-                    git add .
-
-                    git commit -m "Updated image ${BUILD_NUMBER}"
-
-                    git push
-                    '''
-                }
-            }
+            echo 'Pipeline Failed'
         }
     }
 }
