@@ -17,11 +17,13 @@ spec:
         app: python-app
 
     spec:
+
+      imagePullSecrets:
+      - name: ecr-secret
+
       containers:
       - name: python-app
-
         image: 583067668082.dkr.ecr.ap-south-1.amazonaws.com/python-app:6
-
         imagePullPolicy: Always
 
         ports:
