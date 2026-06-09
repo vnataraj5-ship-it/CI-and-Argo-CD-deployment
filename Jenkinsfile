@@ -26,23 +26,26 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+stage('SonarQube Analysis') {
 
-            steps {
-              script {
-                 scannerHome = tool 'sonar-scanner'
-                      }
-                withSonarQubeEnv('sonar-server') {
+    steps {
 
-                    sh '''
-                    sonar-scanner \
-                    -Dsonar.projectKey=python-app \
-                    -Dsonar.projectName=python-app \
-                    -Dsonar.sources=.
-                    '''
-                }
+        script {
+
+            def scannerHome = tool 'sonar-scanner'
+
+            withSonarQubeEnv('sonar-server') {
+
+                sh """
+                ${scannerHome}/bin/sonar-scanner \
+                -Dsonar.projectKey=python-app \
+                -Dsonar.projectName=python-app \
+                -Dsonar.sources=.
+                """
             }
         }
+    }
+}
 
         stage('Build Docker Image') {
 
