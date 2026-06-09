@@ -20,7 +20,7 @@ spec:
       containers:
       - name: python-app
 
-        image: 583067668082.dkr.ecr.ap-south-1.amazonaws.com/python-app:latest
+        image: 583067668082.dkr.ecr.ap-south-1.amazonaws.com/python-app:6
 
         imagePullPolicy: Always
 
