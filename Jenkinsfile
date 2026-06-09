@@ -61,7 +61,7 @@ stage('SonarQube Analysis') {
 
             steps {
 
-                withAWS(credentials: 'aws-ecr', region: "${AWS_REGION}") {
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
 
                     withCredentials([
                         usernamePassword(
