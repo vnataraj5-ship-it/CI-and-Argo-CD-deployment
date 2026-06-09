@@ -94,7 +94,7 @@ stage('SonarQube Analysis') {
 
                         echo "Updating Kubernetes Deployment File..."
 
-                        sed -i "s|image:.*|image: ${IMAGE_URI}|g" k8s/deployment.yaml
+                        sed -i "s|image:.*|image: ${IMAGE_URI}|g" k8/deployment.yaml
 
 
                         echo "Committing Updated Manifest..."
@@ -102,7 +102,7 @@ stage('SonarQube Analysis') {
                         git config user.email "jenkins@local"
                         git config user.name "Jenkins"
 
-                        git add k8s/deployment.yaml
+                        git add k8/deployment.yaml
 
                         git commit -m "Updated image tag to ${IMAGE_TAG}" || true
 
